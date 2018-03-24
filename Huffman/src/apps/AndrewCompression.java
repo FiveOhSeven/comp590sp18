@@ -2,7 +2,6 @@ package apps;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,15 +11,12 @@ import java.util.Map;
 import models.Unsigned8BitModel;
 import codec.HuffmanEncoder;
 import codec.SymbolDecoder;
-import codec.SymbolEncoder;
 import models.Symbol;
 import models.SymbolModel;
 import models.Unsigned8BitModel.Unsigned8BitSymbol;
 import io.InsufficientBitsLeftException;
 import io.BitSink;
 import io.BitSource;
-import codec.ArithmeticDecoder;
-import codec.ArithmeticEncoder;
 import codec.HuffmanDecoder;
 import io.InputStreamBitSource;
 import io.OutputStreamBitSink;
@@ -41,27 +37,20 @@ public class AndrewCompression {
 		int width = 800;
 		int height = 450;
 		int num_frames = 150;
-
-
 		Unsigned8BitModel model = new Unsigned8BitModel();
-
 		InputStream training_values = new FileInputStream(file);
-		
+
 		int[][][] diff = new int[num_frames][width][height];
 		int[][] current_frame = new int[width][height];
-
 		for (int f=0; f < num_frames; f++) {
 			System.out.println("Training frame difference " + f);
 			int[][] prior_frame = current_frame;
 			current_frame = readFrame(training_values, width, height);
-			//System.out.println(current_frame[0][0]);
 			int[][] diff_frame = frameDifference(prior_frame, current_frame);
 			diff[f] = diff_frame;
 			trainModelWithFrame(model, diff_frame);
 		}
 		training_values.close();
-		// System.out.print(diff[0][0][0]);
-		//java.lang.System.exit(1);
 		HuffmanEncoder encoder = new HuffmanEncoder(model, model.getCountTotal());
 		Map<Symbol, String> code_map = encoder.getCodeMap();
 
@@ -135,7 +124,6 @@ public class AndrewCompression {
 				}
 				frame_index += duplicate;
 			}
-
 			if(w+1 == width) {
 				h++;
 			}
@@ -144,17 +132,7 @@ public class AndrewCompression {
 		for(int i = 0; i < num_frames; i++) {
 			outputFrame(uncompressed[i], decoded_file);
 		}
-		
-//		for (int f=0; f<num_frames; f++) {
-//			System.out.println("Decoding frame " + f);
-//			int[][] prior_frame = current_frame;
-//			int[][] diff_frame = decodeFrame(decoder, bit_source, width, height);
-//			current_frame = reconstructFrame(prior_frame, diff_frame);
-//			outputFrame(current_frame, decoded_file);
-//		}
-
 		decoded_file.close();
-
 	}
 
 	private static int[][] readFrame(InputStream src, int width, int height) 
@@ -190,43 +168,6 @@ public class AndrewCompression {
 				model.train(frame[x][y]);
 			}
 		}
-	}
-
-	private static void encodeFrameDifference(int[][] frame, SymbolEncoder encoder, BitSink bit_sink, Symbol[] symbols) 
-			throws IOException {
-
-		int width = frame.length;
-		int height = frame[0].length;
-
-		for (int y=0; y<height; y++) {
-			for (int x=0; x<width; x++) {
-				encoder.encode(symbols[frame[x][y]], bit_sink);
-			}
-		}
-	}
-
-	private static int[][] decodeFrame(SymbolDecoder decoder, BitSource bit_source, int width, int height) 
-			throws InsufficientBitsLeftException, IOException {
-		int[][] frame = new int[width][height];
-		for (int y=0; y<height; y++) {
-			for (int x=0; x<width; x++) {
-				frame[x][y] = ((Unsigned8BitSymbol) decoder.decode(bit_source)).getValue();
-			}
-		}
-		return frame;
-	}
-
-	private static int[][] reconstructFrame(int[][] prior_frame, int[][] frame_difference) {
-		int width = prior_frame.length;
-		int height = prior_frame[0].length;
-
-		int[][] frame = new int[width][height];
-		for (int y=0; y<height; y++) {
-			for (int x=0; x<width; x++) {
-				frame[x][y] = (prior_frame[x][y] + frame_difference[x][y])%256;
-			}
-		}
-		return frame;
 	}
 
 	private static void outputFrame(int[][] frame, OutputStream out) 
